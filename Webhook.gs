@@ -33,7 +33,7 @@ function handleEvent(event) {
     const groupId = event.source.groupId;
     if (groupId) {
       PropertiesService.getScriptProperties().setProperty('SAVED_GROUP_ID', groupId);
-      replyText(event.replyToken, '✅ บอทเข้ามาแล้ว! บันทึก Group ID เรียบร้อยครับ');
+      replyText(event.replyToken, '✅ บอทเข้ามาแล้ว! บันทึก Group ID เรียบร้อยครับ\n\n⚠️ สมาชิกทุกคนอย่าลืม "แอดบอทเป็นเพื่อน" ก่อนเริ่มกดสั่งนะครับ เพื่อให้บอทสามารถรับออเดอร์ได้สมบูรณ์ 😊');
     }
     return;
   }
@@ -105,6 +105,12 @@ function handleEvent(event) {
     if (text === CONFIG.ADMIN_PASSWORD) {
       openPoll();
       replyText(event.replyToken, '✅ เปิดรับออเดอร์กาแฟแล้ว!');
+      return;
+    }
+
+    if (text === 'วิธีใช้') {
+      const guideText = '📌 วิธีใช้งานง่ายๆ:\n0️⃣ สำคัญ: สมาชิกทุกคนต้อง "แอดบอทเป็นเพื่อน" ก่อน\n1️⃣ แอดมินพิมพ์ /coffee เพื่อเปิดรับออเดอร์\n2️⃣ สมาชิกกดปุ่มเลือกเมนู หรือพิมพ์สั่งเอง\n3️⃣ สั่งครบแล้ว แอดมินกดปุ่ม "🛑 ปิดรับออเดอร์" รอรับสรุปยอดได้เลยครับ!';
+      replyText(event.replyToken, guideText);
       return;
     }
 
