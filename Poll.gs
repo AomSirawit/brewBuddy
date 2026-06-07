@@ -16,18 +16,27 @@ function openPoll(groupId) {  // ← รับ groupId เป็น parameter
 function closePoll(pollId) {
   const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
 
-  // หา poll ที่ตรงกับ pollId และยัง open
+  // หา poll ที่ตรงกับ pollId และยัง open (ใช้ String() เทียบกันเพื่อป้องกัน type mismatch)
   const statusSheet = ss.getSheetByName('PollStatus');
   const data = statusSheet.getDataRange().getValues();
   let targetRow = -1;
   let targetGroupId = null;
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] == pollId && data[i][3] === 'open') {
+    if (String(data[i][0]) === String(pollId) && data[i][3] === 'open') {
       targetRow = i + 1;
       targetGroupId = data[i][4];  // ← column ที่ 5 คือ groupId
     }
   }
-  if (targetRow === -1) return;
+
+  if (targetRow === -1) {
+    Logger.log(`closePoll: ไม่เจอ poll ${pollId} ที่ยังเปิดอยู่`);
+    return false;
+  }
+
+  if (!targetGroupId) {
+    Logger.log(`closePoll: poll ${pollId} ไม่มี groupId ใน PollStatus`);
+    return false;
+  }
 
   // ดึงออเดอร์ทั้งหมดของ poll นี้
   const orderSheet = ss.getSheetByName('Orders');
@@ -46,7 +55,7 @@ function closePoll(pollId) {
 
   orders.forEach(row => {
     // โครงสร้าง (จาก saveOrder): 0=PollID, 1=Date, 2=UserID, 3=UserName, 4=Item, 5=Sweetness, 6=CustomText
-    if (row[0] && row[0] == pollId) {
+    if (row[0] && String(row[0]) === String(pollId)) {
       const item = row[4];
       if (!item || item === 'none') return; // ข้ามคนที่ไม่สั่ง
 
@@ -76,6 +85,8 @@ function closePoll(pollId) {
   // ส่งสรุปไปกลุ่มที่เปิด poll
   const flex = buildClosePollFlex(summary, totalCount);
   pushMessage(targetGroupId, [flex]);
+  Logger.log(`closePoll: ปิด poll ${pollId} สำเร็จ ส่งสรุป ${totalCount} รายการไปกลุ่ม ${targetGroupId}`);
+  return true;
 }
 
 function getCloseTime(openTime) {

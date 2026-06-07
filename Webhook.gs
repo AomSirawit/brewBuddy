@@ -56,8 +56,12 @@ function handleEvent(event) {
         replyText(event.replyToken, '🛑 รอบนี้ถูกปิดรับออเดอร์ไปแล้วครับ');
         return;
       }
-      closePoll(params.pollId);  // ← ส่ง pollId เข้าไป
-      replyText(event.replyToken, '🛑 ปิดรับออเดอร์แล้ว กำลังสรุปยอดครับ...');
+      const success = closePoll(params.pollId);
+      if (success) {
+        replyText(event.replyToken, '🛑 ปิดรับออเดอร์แล้ว สรุปยอดส่งไปในกลุ่มแล้วครับ!');
+      } else {
+        replyText(event.replyToken, '❌ เกิดข้อผิดพลาดในการสรุปยอด กรุณาลองใหม่อีกครั้งครับ');
+      }
       return;
     }
 
@@ -150,7 +154,7 @@ function isPollOpen(pollId) {
   const data = statusSheet.getDataRange().getValues();
   // วนลูปจากล่างขึ้นบนเพื่อให้เจอโพลล่าสุดเร็วที่สุด
   for (let i = data.length - 1; i >= 1; i--) {
-    if (data[i][0] == pollId) {
+    if (String(data[i][0]) === String(pollId)) {
       return data[i][3] === 'open';
     }
   }
