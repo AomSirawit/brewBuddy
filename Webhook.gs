@@ -38,6 +38,12 @@ function handleEvent(event) {
     return;
   }
 
+  if (event.type === 'message' && event.message.text === 'groupid') {
+    const gid = event.source.groupId || 'not in group';
+    replyText(event.replyToken, 'Group ID: ' + gid);
+    return;
+  }
+
   // ── POSTBACK ──────────────────────────────────────────────────────────
   if (event.type === 'postback') {
     const params = Object.fromEntries(
@@ -50,7 +56,7 @@ function handleEvent(event) {
         replyText(event.replyToken, '🛑 รอบนี้ถูกปิดรับออเดอร์ไปแล้วครับ');
         return;
       }
-      closePoll();
+      closePoll(params.pollId);  // ← ส่ง pollId เข้าไป
       replyText(event.replyToken, '🛑 ปิดรับออเดอร์แล้ว กำลังสรุปยอดครับ...');
       return;
     }
@@ -103,12 +109,17 @@ function handleEvent(event) {
     const text = event.message.text.trim();
 
     if (text === CONFIG.ADMIN_PASSWORD) {
-      openPoll();
+      const groupId = event.source.groupId;
+      if (!groupId) {
+        replyText(event.replyToken, '❌ ใช้คำสั่งนี้ในกลุ่มเท่านั้นครับ');
+        return;
+      }
+      openPoll(groupId);
       replyText(event.replyToken, '✅ เปิดรับออเดอร์กาแฟแล้ว!');
       return;
     }
 
-    if (text === '/วิธีใช้' || text === 'วิธีใช้') {
+    if (text === 'วิธีใช้') {
       const guideText = '📌 วิธีใช้งานง่ายๆ:\n0️⃣ สำคัญ: สมาชิกทุกคนต้อง "แอดบอทเป็นเพื่อน" ก่อน\n1️⃣ แอดมินพิมพ์ /coffee เพื่อเปิดรับออเดอร์\n2️⃣ สมาชิกกดปุ่มเลือกเมนู หรือพิมพ์สั่งเอง\n3️⃣ สั่งครบแล้ว แอดมินกดปุ่ม "🛑 ปิดรับออเดอร์" รอรับสรุปยอดได้เลยครับ!';
       replyText(event.replyToken, guideText);
       return;

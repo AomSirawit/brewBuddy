@@ -1,38 +1,33 @@
-function openPoll() {
+function openPoll(groupId) {  // ← รับ groupId เป็น parameter
   const now = new Date();
   const pollId = Utilities.formatDate(now, 'Asia/Bangkok', 'yyyyMMddHHmm');
-
-  // คำนวณเวลาปิด (ชั่วโมงถัดไป 09:00)
   const closeTime = getCloseTime(now);
 
-  // บันทึกสถานะโพลใน Sheet
   const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
   const statusSheet = ss.getSheetByName('PollStatus');
-  statusSheet.appendRow([pollId, now, closeTime, 'open']);
+  statusSheet.appendRow([pollId, now, closeTime, 'open', groupId]);  // ← เพิ่ม groupId ใน row
 
-  // ส่ง Flex Message ไปกลุ่ม
   const flex = buildOpenPollFlex(pollId, Utilities.formatDate(closeTime, 'Asia/Bangkok', 'HH:mm'));
-  const targetId = getActiveGroupId();
-  pushMessage(targetId, [flex]);
+  pushMessage(groupId, [flex]);  // ← ใช้ groupId ที่รับมาเลย ไม่ต้อง getActiveGroupId()
 
-  Logger.log(`Poll ${pollId} opened`);
+  Logger.log(`Poll ${pollId} opened for group ${groupId}`);
 }
 
-function closePoll() {
+function closePoll(pollId) {
   const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
 
-  // หา poll ล่าสุดที่ยัง open
+  // หา poll ที่ตรงกับ pollId และยัง open
   const statusSheet = ss.getSheetByName('PollStatus');
   const data = statusSheet.getDataRange().getValues();
-  let latestPollId = null;
-  let latestRow = -1;
+  let targetRow = -1;
+  let targetGroupId = null;
   for (let i = 1; i < data.length; i++) {
-    if (data[i][3] === 'open') {
-      latestPollId = data[i][0];
-      latestRow = i + 1;
+    if (data[i][0] == pollId && data[i][3] === 'open') {
+      targetRow = i + 1;
+      targetGroupId = data[i][4];  // ← column ที่ 5 คือ groupId
     }
   }
-  if (!latestPollId) return;
+  if (targetRow === -1) return;
 
   // ดึงออเดอร์ทั้งหมดของ poll นี้
   const orderSheet = ss.getSheetByName('Orders');
@@ -51,7 +46,7 @@ function closePoll() {
 
   orders.forEach(row => {
     // โครงสร้าง (จาก saveOrder): 0=PollID, 1=Date, 2=UserID, 3=UserName, 4=Item, 5=Sweetness, 6=CustomText
-    if (row[0] && row[0] == latestPollId) {
+    if (row[0] && row[0] == pollId) {
       const item = row[4];
       if (!item || item === 'none') return; // ข้ามคนที่ไม่สั่ง
 
@@ -76,12 +71,11 @@ function closePoll() {
   });
 
   // อัพเดท status เป็น closed
-  statusSheet.getRange(latestRow, 4).setValue('closed');
+  statusSheet.getRange(targetRow, 4).setValue('closed');
 
-  // ส่งสรุปไปกลุ่ม
+  // ส่งสรุปไปกลุ่มที่เปิด poll
   const flex = buildClosePollFlex(summary, totalCount);
-  const targetId = getActiveGroupId();
-  pushMessage(targetId, [flex]);
+  pushMessage(targetGroupId, [flex]);
 }
 
 function getCloseTime(openTime) {
@@ -95,11 +89,35 @@ function getCloseTime(openTime) {
 function pushMessage(to, messages) {
   const url = 'https://api.line.me/v2/bot/message/push';
   const payload = JSON.stringify({ to, messages });
+  Logger.log('Payload: ' + payload);
+
   const options = {
     method: 'post',
     contentType: 'application/json',
     headers: { Authorization: `Bearer ${CONFIG.CHANNEL_ACCESS_TOKEN}` },
-    payload
+    payload,
+    muteHttpExceptions: true
   };
-  UrlFetchApp.fetch(url, options);
+  const response = UrlFetchApp.fetch(url, options);
+
+  // Log ดู error จริงๆ
+  Logger.log('Status: ' + response.getResponseCode());
+  Logger.log('Body: ' + response.getContentText());
+}
+
+function debugGroupId() {
+  const id = getActiveGroupId();
+  Logger.log('ID: ' + id);
+  Logger.log('Length: ' + (id ? id.length : 'null'));
+}
+
+function checkProperties() {
+  const props = PropertiesService.getScriptProperties().getProperties();
+  Logger.log(JSON.stringify(props));
+}
+
+function fixGroupId() {
+  const correctId = 'C...'; // ← วาง Group ID ที่ได้จาก Step 3
+  PropertiesService.getScriptProperties().setProperty('SAVED_GROUP_ID', correctId);
+  Logger.log('Saved: ' + correctId + ' (length: ' + correctId.length + ')');
 }
